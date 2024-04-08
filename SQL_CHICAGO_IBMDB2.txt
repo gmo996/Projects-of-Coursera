@@ -1,0 +1,86 @@
+SELECT SC.NAME_OF_SCHOOL, SC.COMMUNITY_AREA_NAME, SC.AVERAGE_STUDENT_ATTENDANCE, CS.HARDSHIP_INDEX
+FROM CHICAGO_PUBLIC_SCHOOLS AS SC
+LEFT JOIN CHICAGO_CENSUS_DATA AS CS ON SC.COMMUNITY_AREA_NUMBER = CS.COMMUNITY_AREA_NUMBER
+WHERE CS.HARDSHIP_INDEX = 98;
+
+
+
+SELECT CR.CASE_NUMBER, CR.LOCATION_DESCRIPTION, CR.PRIMARY_TYPE, CS.COMMUNITY_AREA_NAME
+FROM CHICAGO_CRIME_DATA AS CR
+--LEFT JOIN CHICAGO_PUBLIC_SCHOOLS AS SC ON CR.COMMUNITY_AREA_NUMBER = SC.COMMUNITY_AREA_NUMBER
+LEFT JOIN CHICAGO_CENSUS_DATA AS CS ON CR.COMMUNITY_AREA_NUMBER = CS.COMMUNITY_AREA_NUMBER
+WHERE CR.LOCATION_DESCRIPTION LIKE '%SCHOOL%'
+ORDER BY CASE_NUMBER;
+
+
+
+CREATE OR REPLACE VIEW SCHOOL_VIEW AS
+SELECT 
+NAME_OF_SCHOOL AS School_Name, 
+Safety_Icon AS Safety_Rating,
+Family_Involvement_Icon AS Family_Rating,
+Environment_Icon AS Environment_Rating,
+Instruction_Icon AS Instruction_Rating,
+Leaders_Icon AS Leaders_Rating,
+Teachers_Icon AS Teachers_Rating
+FROM CHICAGO_PUBLIC_SCHOOLS;
+
+SELECT School_Name, Leaders_Rating FROM SCHOOL_VIEW;
+
+
+
+
+--#SET TERMINATOR @
+CREATE OR REPLACE PROCEDURE UPDATE_LEADERS_SCORE(IN in_School_ID INT, IN in_Leader_Score INT)
+
+LANGUAGE SQL                                                -- Language used in this routine 
+MODIFIES SQL DATA                                           -- This routine will only write/modify data in the table
+
+BEGIN
+
+DECLARE SQLCODE INTEGER DEFAULT 0;                  -- Host variable SQLCODE declared and assigned 0
+DECLARE retcode INTEGER DEFAULT 0;                  -- Local variable retcode with declared and assigned 0
+DECLARE CONTINUE HANDLER FOR SQLEXCEPTION           -- Handler tell the routine what to do when an error or warning occurs
+SET retcode = SQLCODE;                              -- Value of SQLCODE assigned to local variable retcode
+
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET Leaders_Score = in_Leader_Score
+WHERE SCHOOL_ID = in_School_ID;
+
+IF in_Leader_Score>=80 AND in_Leader_Score<=99 THEN
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET LEADERS_ICON = 'Very strong';
+
+ELSEIF in_Leader_Score>=60 AND in_Leader_Score<=79 THEN
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET LEADERS_ICON = 'Strong';
+
+ELSEIF in_Leader_Score>=40 AND in_Leader_Score<=59 THEN
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET LEADERS_ICON = 'Average';
+
+ELSEIF in_Leader_Score>=20 AND in_Leader_Score<=39 THEN
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET LEADERS_ICON = 'Weak';
+
+ELSEIF in_Leader_Score>=0 AND in_Leader_Score<=19 THEN
+UPDATE CHICAGO_PUBLIC_SCHOOLS
+SET LEADERS_ICON = 'Very weak';
+
+ELSE
+ROLLBACK WORK;
+
+END IF;
+COMMIT WORK;
+
+IF retcode < 0 THEN                                  --  SQLCODE returns negative value for error, zero for success, positive value for warning
+    ROLLBACK WORK;
+ELSE
+    COMMIT WORK;
+END IF;
+
+END
+@
+
+
+
